@@ -1,0 +1,20 @@
+{
+  "name": "smart-library-system",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "pnpm@12.3.1",
+  "scripts": {
+    "dev": "pnpm --parallel --filter \"@smart-library/*\" dev",
+    "dev:api": "pnpm --filter @smart-library/api dev",
+    "dev:web": "pnpm --filter @smart-library/web dev",
+    "build": "pnpm -r build",
+    "build:cpp": "./cpp-engine/build.sh build",
+    "test:cpp": "./cpp-engine/build.sh test",
+    "test:api": "pnpm --filter @smart-library/api test",
+    "test": "pnpm run test:cpp && pnpm run test:api",
+    "sample:cpp": "./cpp-engine/build.sh sample",
+    "seed": "pnpm --filter @smart-library/api exec tsx ../../data/seed.ts",
+    "clean": "rm -rf node_modules apps/*/node_modules packages/*/node_modules apps/*/dist cpp-engine/build/*"
+  },
+  "devDependencies": {}
+}
