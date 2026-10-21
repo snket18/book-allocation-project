@@ -92,9 +92,15 @@ export interface ApiResponse<T = unknown> {
   message?: string;
 }
 
+export type UserRole = 'admin' | 'student';
+
 export interface AuthUser {
   username: string;
-  role: 'admin';
+  role: UserRole;
   token: string;
   expiresAt: string;
+  studentId?: string;
+  department?: string;
+  name?: string;
 }
+

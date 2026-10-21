@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { ApiResponse, Book, ShelfPage } from '@smart-library/shared';
 import { StorageService } from '../services/storage';
 import { CppEngineService } from '../services/cppEngine';
+import { AuthService } from '../services/auth';
 
 export const createStudentRouter = (
   storage: StorageService,
@@ -296,5 +297,109 @@ export const createStudentRouter = (
     }
   });
 
+  /**
+   * POST /api/auth/student-login
+   * Quick student authentication for library borrowing & catalog browsing
+   */
+  router.post('/auth/student-login', (req: Request, res: Response) => {
+    try {
+      const { studentId, name, department } = req.body || {};
+      const actualId = (studentId && String(studentId).trim()) || 'STU-2026-042';
+      const actualName = (name && String(name).trim()) || 'Alex Rivera';
+      const actualDept = (department && String(department).trim()) || 'Computer Science & Engineering';
+
+      const authData = AuthService.generateToken(actualName, 'student', {
+        studentId: actualId,
+        department: actualDept,
+        name: actualName,
+      });
+
+      return res.json({
+        success: true,
+        data: authData,
+        message: 'Student authenticated successfully.',
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Student login failed';
+      return res.status(500).json({
+        success: false,
+        error: { code: 'AUTH_ERROR', message: msg },
+      });
+    }
+  });
+
+  /**
+   * GET /api/student/profile
+   * Returns authenticated student profile, borrowed books, and recommended books
+   */
+  router.get('/student/profile', (req: Request, res: Response) => {
+    try {
+      const authHeader = req.headers.authorization;
+      let studentUser = {
+        studentId: 'STU-2026-042',
+        name: 'Alex Rivera',
+        department: 'Computer Science & Engineering',
+        memberSince: 'Fall 2024',
+        cardStatus: 'Active',
+        maxAllowed: 4,
+      };
+
+      if (authHeader) {
+        const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : authHeader.trim();
+        const verified = AuthService.verifyToken(token);
+        if (verified && verified.role === 'student') {
+          studentUser = {
+            studentId: verified.studentId || 'STU-2026-042',
+            name: verified.name || verified.username || 'Student',
+            department: verified.department || 'Computer Science & Engineering',
+            memberSince: 'Fall 2024',
+            cardStatus: 'Active',
+            maxAllowed: 4,
+          };
+        }
+      }
+
+      const allBooks = storage.getBooks();
+
+      // Find borrowed books in the collection for student demo
+      const currentlyBorrowed = allBooks
+        .filter((b) => !b.availability)
+        .slice(0, 2)
+        .map((b, idx) => ({
+          ...b,
+          borrowDate: new Date(Date.now() - (idx + 1) * 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          dueDate: new Date(Date.now() + (14 - (idx + 1) * 3) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          status: 'Checked Out',
+        }));
+
+      // Top recommended books for this student
+      const recommended = allBooks
+        .filter((b) => b.availability)
+        .sort((a, b) => b.borrowCount - a.borrowCount)
+        .slice(0, 4);
+
+      return res.json({
+        success: true,
+        data: {
+          profile: studentUser,
+          borrowedBooks: currentlyBorrowed,
+          recommendedBooks: recommended,
+          stats: {
+            borrowedCount: currentlyBorrowed.length,
+            availableQuota: studentUser.maxAllowed - currentlyBorrowed.length,
+            fineAmount: '$0.00',
+          },
+        },
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to retrieve profile';
+      return res.status(500).json({
+        success: false,
+        error: { code: 'PROFILE_ERROR', message: msg },
+      });
+    }
+  });
+
   return router;
 };
+

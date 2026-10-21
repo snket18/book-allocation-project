@@ -11,6 +11,7 @@ import { ShelvesPage } from './pages/ShelvesPage';
 import { LoginPage } from './pages/LoginPage';
 import { AdminPage } from './pages/AdminPage';
 import { BarcodeScannerPage } from './pages/BarcodeScannerPage';
+import { StudentProfilePage } from './pages/StudentProfilePage';
 import { NotFoundPage } from './pages/NotFoundPage';
 
 export default function App() {
@@ -25,6 +26,8 @@ export default function App() {
                 <Route path="/" element={<HomePage />} />
                 <Route path="/browse" element={<BrowsePage />} />
                 <Route path="/shelves" element={<ShelvesPage />} />
+                <Route path="/student" element={<StudentProfilePage />} />
+                <Route path="/profile" element={<StudentProfilePage />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/admin" element={<AdminPage />} />
                 <Route path="/scanner" element={<BarcodeScannerPage />} />

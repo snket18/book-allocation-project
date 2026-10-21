@@ -139,6 +139,37 @@ export class ApiClient {
     return this.request('/api/analytics');
   }
 
+  // --- Student Auth & Profile APIs ---
+
+  public static async studentLogin(params: { studentId?: string; name?: string; department?: string } = {}): Promise<AuthUser> {
+    const data = await this.request<AuthUser>('/api/auth/student-login', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+    this.setAuth(data);
+    return data;
+  }
+
+  public static async getStudentProfile(): Promise<{
+    profile: {
+      studentId: string;
+      name: string;
+      department: string;
+      memberSince: string;
+      cardStatus: string;
+      maxAllowed: number;
+    };
+    borrowedBooks: (Book & { borrowDate: string; dueDate: string; status: string })[];
+    recommendedBooks: Book[];
+    stats: {
+      borrowedCount: number;
+      availableQuota: number;
+      fineAmount: string;
+    };
+  }> {
+    return this.request('/api/student/profile');
+  }
+
   // --- Admin APIs ---
 
   public static async login(username: string, password: string): Promise<AuthUser> {

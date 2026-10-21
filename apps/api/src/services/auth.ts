@@ -1,12 +1,15 @@
 import crypto from 'node:crypto';
 import { Request, Response, NextFunction } from 'express';
-import { AuthUser } from '@smart-library/shared';
+import { AuthUser, UserRole } from '@smart-library/shared';
 import { config } from '../config';
 
-interface TokenPayload {
+export interface TokenPayload {
   username: string;
-  role: 'admin';
+  role: UserRole;
   exp: number; // epoch ms
+  studentId?: string;
+  department?: string;
+  name?: string;
 }
 
 export class AuthService {
@@ -24,12 +27,17 @@ export class AuthService {
   /**
    * Generates a signed, tamper-proof bearer token: base64(payload).signature
    */
-  public static generateToken(username: string): AuthUser {
+  public static generateToken(
+    username: string,
+    role: UserRole = 'admin',
+    extra?: { studentId?: string; department?: string; name?: string }
+  ): AuthUser {
     const expiresAtMs = Date.now() + config.tokenDurationHours * 60 * 60 * 1000;
     const payload: TokenPayload = {
       username,
-      role: 'admin',
+      role,
       exp: expiresAtMs,
+      ...extra,
     };
 
     const payloadBase64 = Buffer.from(JSON.stringify(payload)).toString('base64url');
@@ -42,9 +50,12 @@ export class AuthService {
 
     return {
       username,
-      role: 'admin',
+      role,
       token,
       expiresAt: new Date(expiresAtMs).toISOString(),
+      studentId: extra?.studentId,
+      department: extra?.department,
+      name: extra?.name,
     };
   }
 
@@ -66,7 +77,9 @@ export class AuthService {
       .digest('base64url');
 
     // Constant-time comparison to prevent timing attacks
-    if (!crypto.timingSafeEqual(Buffer.from(providedSig), Buffer.from(expectedSig))) {
+    const provBuf = Buffer.from(providedSig);
+    const expBuf = Buffer.from(expectedSig);
+    if (provBuf.length !== expBuf.length || !crypto.timingSafeEqual(provBuf, expBuf)) {
       return null;
     }
 
@@ -153,3 +166,38 @@ export const requireAdmin = (req: Request, res: Response, next: NextFunction): v
   (req as Request & { adminUser?: TokenPayload }).adminUser = verified;
   next();
 };
+
+/**
+ * Express Middleware: Protects Endpoints for any Authenticated User (Student or Admin)
+ */
+export const requireAuth = (req: Request, res: Response, next: NextFunction): void => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    res.status(401).json({
+      success: false,
+      error: {
+        code: 'UNAUTHORIZED',
+        message: 'Authorization token required. Please log in.',
+      },
+    });
+    return;
+  }
+
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : authHeader.trim();
+  const verified = AuthService.verifyToken(token);
+
+  if (!verified) {
+    res.status(403).json({
+      success: false,
+      error: {
+        code: 'FORBIDDEN',
+        message: 'Invalid or expired session token.',
+      },
+    });
+    return;
+  }
+
+  (req as Request & { user?: TokenPayload }).user = verified;
+  next();
+};
+

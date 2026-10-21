@@ -562,6 +562,64 @@ describe('Smart Library Backend API Test Suite', () => {
       assert.equal(pagesAfter, pagesBefore);
     });
   });
+
+  // 9. Student Profile & Role Separation
+  describe('Student Profile & Role Separation', () => {
+    let studentToken: string;
+
+    test('POST /api/auth/student-login returns valid student token with student role', async () => {
+      const res = await request(app)
+        .post('/api/auth/student-login')
+        .send({ studentId: 'STU-2026-099', name: 'Priya Sharma', department: 'Data Science' });
+
+      assert.equal(res.status, 200);
+      assert.equal(res.body.success, true);
+      assert.equal(res.body.data.role, 'student');
+      assert.equal(res.body.data.studentId, 'STU-2026-099');
+      assert.ok(typeof res.body.data.token === 'string');
+      studentToken = res.body.data.token;
+    });
+
+    test('Student token CANNOT access admin-only endpoints (Strict Authorization: 403 FORBIDDEN)', async () => {
+      // Student tries to add a book
+      const res = await request(app)
+        .post('/api/admin/books')
+        .set('Authorization', `Bearer ${studentToken}`)
+        .send({
+          bookId: 'HACK-01',
+          title: 'Unauthorized Book',
+          author: 'Attacker',
+          genre: 'Security',
+        });
+
+      assert.equal(res.status, 403);
+      assert.equal(res.body.success, false);
+      assert.equal(res.body.error.code, 'FORBIDDEN');
+    });
+
+    test('Student token CANNOT access admin shelf optimization endpoint', async () => {
+      const res = await request(app)
+        .post('/api/admin/shelves/optimize')
+        .set('Authorization', `Bearer ${studentToken}`);
+
+      assert.equal(res.status, 403);
+      assert.equal(res.body.error.code, 'FORBIDDEN');
+    });
+
+    test('GET /api/student/profile returns student details, borrowed books with shelf return coordinates', async () => {
+      const res = await request(app)
+        .get('/api/student/profile')
+        .set('Authorization', `Bearer ${studentToken}`);
+
+      assert.equal(res.status, 200);
+      assert.equal(res.body.success, true);
+      assert.equal(res.body.data.profile.studentId, 'STU-2026-099');
+      assert.equal(res.body.data.profile.name, 'Priya Sharma');
+      assert.ok(Array.isArray(res.body.data.borrowedBooks));
+      assert.ok(Array.isArray(res.body.data.recommendedBooks));
+      assert.ok(typeof res.body.data.stats.availableQuota === 'number');
+    });
+  });
 });
 
 

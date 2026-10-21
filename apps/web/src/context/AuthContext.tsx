@@ -5,8 +5,11 @@ import { ApiClient } from '../services/api';
 interface AuthContextType {
   user: AuthUser | null;
   isAuthenticated: boolean;
+  isAdmin: boolean;
+  isStudent: boolean;
   isLoading: boolean;
   login: (username: string, pass: string) => Promise<void>;
+  studentLogin: (params?: { studentId?: string; name?: string; department?: string }) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -36,18 +39,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(authData);
   };
 
+  const studentLogin = async (params?: { studentId?: string; name?: string; department?: string }) => {
+    const authData = await ApiClient.studentLogin(params);
+    setUser(authData);
+  };
+
   const logout = async () => {
     await ApiClient.logout();
     setUser(null);
   };
+
+  const isAdmin = !!user && user.role === 'admin';
+  const isStudent = !!user && user.role === 'student';
 
   return (
     <AuthContext.Provider
       value={{
         user,
         isAuthenticated: !!user,
+        isAdmin,
+        isStudent,
         isLoading,
         login,
+        studentLogin,
         logout,
       }}
     >

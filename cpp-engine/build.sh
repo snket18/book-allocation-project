@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Smart Library C++ Engine Build & Test Script for macOS / Linux
+# Smart Library C DSA Engine Build & Test Script for macOS / Linux
 # ==============================================================================
 
 set -euo pipefail
@@ -12,27 +12,49 @@ INCLUDE_DIR="${SCRIPT_DIR}/include"
 SRC_DIR="${SCRIPT_DIR}/src"
 TESTS_DIR="${SCRIPT_DIR}/tests"
 
-# Detect C++ compiler (clang++ on macOS default, fallback to g++)
-if command -v clang++ >/dev/null 2>&1; then
-    CXX="clang++"
-elif command -v g++ >/dev/null 2>&1; then
-    CXX="g++"
+# Detect C compiler (clang on macOS default, fallback to gcc)
+if command -v clang >/dev/null 2>&1; then
+    CC="clang"
+elif command -v gcc >/dev/null 2>&1; then
+    CC="gcc"
 else
-    echo "ERROR: Neither clang++ nor g++ compiler found on this system." >&2
+    echo "ERROR: Neither clang nor gcc compiler found on this system." >&2
     exit 1
 fi
 
-CXX_FLAGS="-std=c++17 -O2 -Wall -Wextra -pedantic -I${INCLUDE_DIR}"
+C_FLAGS="-std=c11 -O2 -Wall -Wextra -I${INCLUDE_DIR}"
 
 mkdir -p "${BUILD_DIR}"
+
+ENGINE_SOURCES=(
+    "${SRC_DIR}/main.c"
+    "${SRC_DIR}/book.c"
+    "${SRC_DIR}/shelf_2d.c"
+    "${SRC_DIR}/quicksort.c"
+    "${SRC_DIR}/hashtable.c"
+    "${SRC_DIR}/bst.c"
+    "${SRC_DIR}/shelf_optimizer.c"
+    "${SRC_DIR}/cJSON.c"
+)
+
+TEST_SOURCES=(
+    "${TESTS_DIR}/test_runner.c"
+    "${SRC_DIR}/book.c"
+    "${SRC_DIR}/shelf_2d.c"
+    "${SRC_DIR}/quicksort.c"
+    "${SRC_DIR}/hashtable.c"
+    "${SRC_DIR}/bst.c"
+    "${SRC_DIR}/shelf_optimizer.c"
+    "${SRC_DIR}/cJSON.c"
+)
 
 action="${1:-build}"
 
 case "${action}" in
     build)
-        echo "--> Compiling SmartShelf C++ Engine with ${CXX}..."
-        if ${CXX} ${CXX_FLAGS} "${SRC_DIR}/main.cpp" -o "${BUILD_DIR}/shelf_engine"; then
-            echo "✓ Successfully compiled: ${BUILD_DIR}/shelf_engine"
+        echo "--> Compiling SmartShelf C Engine with ${CC}..."
+        if ${CC} ${C_FLAGS} "${ENGINE_SOURCES[@]}" -lm -o "${BUILD_DIR}/shelf_engine"; then
+            echo "✓ Successfully compiled C engine: ${BUILD_DIR}/shelf_engine"
         else
             echo "✗ Compilation failed for shelf_engine." >&2
             exit 1
@@ -40,8 +62,8 @@ case "${action}" in
         ;;
 
     test)
-        echo "--> Compiling and running automated C++ test suite..."
-        if ${CXX} ${CXX_FLAGS} "${TESTS_DIR}/test_runner.cpp" -o "${BUILD_DIR}/test_runner"; then
+        echo "--> Compiling and running automated C test suite..."
+        if ${CC} ${C_FLAGS} "${TEST_SOURCES[@]}" -lm -o "${BUILD_DIR}/test_runner"; then
             echo "✓ Compiled test runner. Running tests..."
             "${BUILD_DIR}/test_runner"
         else
@@ -96,7 +118,7 @@ EOF
         ;;
 
     clean)
-        echo "--> Cleaning C++ build artifacts..."
+        echo "--> Cleaning C build artifacts..."
         rm -rf "${BUILD_DIR}/shelf_engine" "${BUILD_DIR}/test_runner" "${BUILD_DIR}"/*.dSYM
         touch "${BUILD_DIR}/.gitkeep"
         echo "✓ Clean complete."
